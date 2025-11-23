@@ -1,244 +1,538 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RudokMedok :: DPI Checker</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RU :: TCP 16-20 DPI Checker | rudokmedok</title>
   <style>
+    :root {
+      --bg: linear-gradient(to bottom, #0a0a0a, #1a1a1a);
+      --card-bg: #222;
+      --text: #eee;
+      --text-muted: #aaa;
+      --accent: #fff;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --error: #f87171;
+      --info: #60a5fa;
+      --border: #333;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
-      background: linear-gradient(135deg, #000, #2b2b2b);
-      color: #fff;
+      font: 1em/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       margin: 0;
       padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
     }
 
     header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px;
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+      margin-bottom: 20px;
     }
 
-    header img {
-      height: 40px;
+    .logo {
+      font-size: 2.2em;
+      font-weight: 800;
+      background: linear-gradient(90deg, #ffffff, #cccccc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 8px;
     }
 
     .tabs {
       display: flex;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 10px;
       gap: 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 20px 0;
     }
 
-    .tab {
+    .tab-btn {
       padding: 10px 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      transition: 0.3s;
+      border-radius: 6px;
+      transition: all 0.2s;
     }
 
-    .tab.active {
-      background: #fff;
-      color: #000;
+    .tab-btn.active {
+      background: #333;
+      border-color: #555;
       font-weight: bold;
     }
 
-    .container {
-      padding: 20px;
+    .tab-content {
+      display: none;
     }
 
-    button {
-      padding: 10px 20px;
-      font-size: 1.1em;
+    .tab-content.active {
+      display: block;
+    }
+
+    .server-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 12px;
+      margin: 15px 0;
+    }
+
+    .server-item {
+      background: var(--card-bg);
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .server-item input {
+      margin: 0;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    #start {
+      font-size: 1.2em;
+      padding: 0.8em 1.5em;
+      background: #ff008b;
+      color: #fff;
       border: 0;
-      background: #fff;
-      color: #000;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
-      transition: 0.3s;
+      transition: background 0.3s, transform 0.1s;
     }
 
-    button:hover {
-      opacity: 0.8;
+    #start:hover {
+      background: #d40074;
+      transform: translateY(-2px);
     }
+
+    #start:disabled {
+      background: #555;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #status {
+      font-weight: 600;
+    }
+
+    .status-ready { color: var(--success); }
+    .status-checking { color: var(--info); }
+    .status-error { color: var(--error); }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border-radius: 10px;
+      background: var(--card-bg);
+      border-radius: 8px;
       overflow: hidden;
+      margin-top: 0.2em;
+      margin-bottom: 20px;
     }
 
     th, td {
-      padding: 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
     }
 
     th {
-      background: rgba(255, 255, 255, 0.1);
+      background: #333;
+      font-weight: 600;
     }
 
-    .ok { color: #00ff85; font-weight: bold; }
-    .bad { color: #ff4f4f; font-weight: bold; }
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .ok { color: var(--success); font-weight: 500; }
+    .bad { color: var(--error); font-weight: 500; }
 
     #log {
-      margin-top: 20px;
+      background: #000;
+      color: #ccc;
       padding: 15px;
-      background: #111;
-      border-radius: 8px;
-      max-height: 300px;
+      border-radius: 6px;
+      font: 0.9em 'Courier New', monospace;
+      max-height: 250px;
       overflow-y: auto;
+      margin: 0.5em 0;
       white-space: pre-wrap;
+    }
+
+    #asn {
+      margin-top: 0.2em;
       font-size: 0.9em;
+      color: var(--text-muted);
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 0.9em;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    a {
+      color: var(--info);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 10px; }
+      .logo { font-size: 1.8em; }
+      .server-list { grid-template-columns: 1fr; }
+      #start { width: 100%; font-size: 1em; }
+      th, td { padding: 6px 10px; font-size: 0.9em; }
     }
   </style>
 </head>
-
 <body>
-  <header>
-    <img src="https://rudokmedok.ru/logo.png" alt="RudokMedok" />
-    <h2>DPI Checker TCP 16-20</h2>
-  </header>
-
-  <div class="tabs">
-    <div class="tab active" data-tab="games">Игровые сервера</div>
-    <div class="tab" data-tab="discord">Discord</div>
-    <div class="tab" data-tab="youtube">YouTube / Google</div>
-    <div class="tab" data-tab="blocked">DPI / RKN</div>
-    <div class="tab" data-tab="custom">Кастомные</div>
-  </div>
-
   <div class="container">
-    <button id="start">Начать проверку</button>
-    <span id="status">Готово ⚡</span>
+    <header>
+      <div class="logo">rudokmedok</div>
+      <div id="asn"></div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="games">Игровые</button>
+      <button class="tab-btn" data-tab="discord">Discord</button>
+      <button class="tab-btn" data-tab="youtube">YouTube / RKN</button>
+      <button class="tab-btn" data-tab="all">Все</button>
+    </div>
+
+    <!-- Игровые -->
+    <div class="tab-content active" id="tab-games">
+      <div class="server-list" id="list-games"></div>
+    </div>
+
+    <!-- Discord -->
+    <div class="tab-content" id="tab-discord">
+      <div class="server-list" id="list-discord"></div>
+    </div>
+
+    <!-- YouTube / RKN -->
+    <div class="tab-content" id="tab-youtube">
+      <div class="server-list" id="list-youtube"></div>
+    </div>
+
+    <!-- Все -->
+    <div class="tab-content" id="tab-all">
+      <div class="server-list" id="list-all"></div>
+    </div>
+
+    <div class="controls">
+      <button id="start">Запустить проверку</button>
+      <span>Статус: <span id="status" class="status-ready">Готов ⚡</span></span>
+    </div>
 
     <table id="results">
       <tr>
         <th>#</th>
         <th>Провайдер</th>
-        <th>Статус DPI</th>
+        <th>Статус DPI[tcp 16-20]</th>
       </tr>
     </table>
 
     <pre id="log"></pre>
+
+    <div class="footer">
+      💡 DPI[tcp 16-20] — проверка обхода DPI в диапазоне TCP 16–20 байт.<br>
+      Подробнее: <a href="https://github.com/net4people/bbs/issues/490" target="_blank">здесь</a>.<br>
+      Исходный код: <a href="https://github.com/hyperion-cs/dpi-checkers" target="_blank">dpi-checkers</a>.
+    </div>
   </div>
 
   <script>
-    const TABS = {
-      games: [
-      { id: "US.CF-01", provider: "🇺🇸 Cloudflare", times: 1, url: "https://cdn.cookielaw.org/scripttemplates/202501.2.0/otBannerSdk.js" },
-      { id: "US.CF-02", provider: "🇺🇸 Cloudflare", times: 1, url: "https://genshin.jmp.blue/characters/all#" },
-      { id: "US.CF-03", provider: "🇺🇸 Cloudflare", times: 1, url: "https://api.frankfurter.dev/v1/2000-01-01..2002-12-31" },
-      { id: "US.DO-01", provider: "🇺🇸 DigitalOcean", times: 2, url: "https://genderize.io/" },
-      { id: "DE.HE-01", provider: "🇩🇪 Hetzner", times: 1, url: "https://j.dejure.org/jcg/doctrine/doctrine_banner.webp" },
-      { id: "FI.HE-01", provider: "🇫🇮 Hetzner", times: 1, url: "https://tcp1620-01.dubybot.live/1MB.bin" },
-      { id: "FI.HE-02", provider: "🇫🇮 Hetzner", times: 1, url: "https://tcp1620-02.dubybot.live/1MB.bin" },
-      { id: "FI.HE-03", provider: "🇫🇮 Hetzner", times: 1, url: "https://tcp1620-05.dubybot.live/1MB.bin" },
-      { id: "FI.HE-04", provider: "🇫🇮 Hetzner", times: 1, url: "https://tcp1620-06.dubybot.live/1MB.bin" },
-      { id: "FR.OVH-01", provider: "🇫🇷 OVH", times: 1, url: "https://eu.api.ovh.com/console/rapidoc-min.js" },
-      { id: "FR.OVH-02", provider: "🇫🇷 OVH", times: 1, url: "https://ovh.sfx.ovh/10M.bin" },
-      { id: "SE.OR-01", provider: "🇸🇪 Oracle", times: 1, url: "https://oracle.sfx.ovh/10M.bin" },
-      { id: "DE.AWS-01", provider: "🇩🇪 AWS", times: 1, url: "https://tms.delta.com/delta/dl_anderson/Bootstrap.js" },
-      { id: "US.AWS-01", provider: "🇺🇸 AWS", times: 1, url: "https://corp.kaltura.com/wp-content/cache/min/1/wp-content/themes/airfleet/dist/styles/theme.css" },
-      { id: "US.GC-01", provider: "🇺🇸 Google Cloud", times: 1, url: "https://api.usercentrics.eu/gvl/v3/en.json" },
-      { id: "US.FST-01", provider: "🇺🇸 Fastly", times: 1, url: "https://openoffice.apache.org/images/blog/rejected.png" },
-      { id: "US.FST-02", provider: "🇺🇸 Fastly", times: 1, url: "https://www.juniper.net/etc.clientlibs/juniper/clientlibs/clientlib-site/resources/fonts/lato/Lato-Regular.woff2" },
-      { id: "PL.AKM-01", provider: "🇵🇱 Akamai", times: 1, url: "https://www.lg.com/lg5-common-gp/library/jquery.min.js" },
-      { id: "PL.AKM-02", provider: "🇵🇱 Akamai", times: 1, url: "https://media-assets.stryker.com/is/image/stryker/gateway_1?$max_width_1410$" },
-      { id: "US.CDN77-01", provider: "🇺🇸 CDN77", times: 1, url: "https://www.winkgo.com/wp-content/themes/mts_sociallyviral/fonts/fontawesome-webfont.woff2" },
-      { id: "DE.CNTB-01", provider: "🇩🇪 Contabo", times: 1, url: "https://cloudlets.io/wp-content/themes/Avada/includes/lib/assets/fonts/fontawesome/webfonts/fa-solid-900.woff2" },
-      { id: "FR.SW-01", provider: "🇫🇷 Scaleway", times: 1, url: "https://renklisigorta.com.tr/teklif-al" },
-      { id: "US.CNST-01", provider: "🇺🇸 Constant", times: 1, url: "https://cdn.xuansiwei.com/common/lib/font-awesome/4.7.0/fontawesome-webfont.woff2?v=4.7.0" }
-    ],
-      discord: [
-        { id: "DC-01", provider: "Discord CDN", times: 1, url: "https://discord.com/api/v9/users/@me" },
-        { id: "DC-02", provider: "Discord Media", times: 1, url: "https://cdn.discordapp.com/icons/81384788765712384/a_123.png" }
-      ],
-      youtube: [
-        { id: "YT-01", provider: "Google Video", times: 1, url: "https://redirector.googlevideo.com/videoplayback" },
-        { id: "YT-02", provider: "Google", times: 1, url: "https://www.youtube.com/s/player/abcd1234/player_ias.vflset" }
-      ],
-      blocked: [
-        { id: "VK-01", provider: "VK", times: 1, url: "https://vk.com/js/api/share.js" },
-        { id: "TG-01", provider: "Telegram", times: 1, url: "https://core.telegram.org/js/telegram-widget.js" }
-      ],
-      custom: []
+    // Глобальные настройки
+    const OK_THRESHOLD_BYTES = 64 * 1024;
+    let TIMEOUT_MS = 5000;
+
+    // Все тесты
+    const FULL_TEST_SUITE = [
+      { id: "US.CF-01", provider: "🇺🇸 Cloudflare", group: "games", url: "https://cdn.cookielaw.org/scripttemplates/202501.2.0/otBannerSdk.js" },
+      { id: "US.CF-02", provider: "🇺🇸 Cloudflare", group: "games", url: "https://genshin.jmp.blue/characters/all#" },
+      { id: "US.CF-03", provider: "🇺🇸 Cloudflare", group: "games", url: "https://api.frankfurter.dev/v1/2000-01-01..2002-12-31" },
+      { id: "US.DO-01", provider: "🇺🇸 DigitalOcean", group: "games", url: "https://genderize.io/" },
+      { id: "DE.HE-01", provider: "🇩🇪 Hetzner", group: "games", url: "https://j.dejure.org/jcg/doctrine/doctrine_banner.webp" },
+      { id: "FI.HE-01", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-01.dubybot.live/1MB.bin" },
+      { id: "FI.HE-02", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-02.dubybot.live/1MB.bin" },
+      { id: "FI.HE-03", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-05.dubybot.live/1MB.bin" },
+      { id: "FI.HE-04", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-06.dubybot.live/1MB.bin" },
+      { id: "FR.OVH-01", provider: "🇫🇷 OVH", group: "games", url: "https://eu.api.ovh.com/console/rapidoc-min.js" },
+      { id: "FR.OVH-02", provider: "🇫🇷 OVH", group: "games", url: "https://ovh.sfx.ovh/10M.bin" },
+      { id: "SE.OR-01", provider: "🇸🇪 Oracle", group: "games", url: "https://oracle.sfx.ovh/10M.bin" },
+
+      // Discord
+      { id: "DISC-01", provider: "🌍 Discord CDN", group: "discord", url: "https://cdn.discordapp.com/attachments/1234567890/1234567890/image.png" },
+      { id: "DISC-02", provider: "🌍 Discord API", group: "discord", url: "https://discord.com/api/v9/gateway" },
+
+      // YouTube / Google / RKN
+      { id: "YT-01", provider: "🎥 YouTube (Google)", group: "youtube", url: "https://www.youtube.com/s/player/12345678/player_ias.vflset/en_US/base.js" },
+      { id: "GOOG-01", provider: "🔍 Google Fonts", group: "youtube", url: "https://fonts.googleapis.com/css2?family=Roboto&display=swap" },
+      { id: "RKN-01", provider: "🔒 Заблокировано (RKN)", group: "youtube", url: "https://zaborona.help/1MB.bin" },
+    ];
+
+    // Дублируем оригинальные тесты из вопроса (без дублирования групп)
+    const LEGACY_SUITE = [
+      { id: "DE.AWS-01", provider: "🇩🇪 AWS", group: "games", url: "https://tms.delta.com/delta/dl_anderson/Bootstrap.js" },
+      { id: "US.AWS-01", provider: "🇺🇸 AWS", group: "games", url: "https://corp.kaltura.com/wp-content/cache/min/1/wp-content/themes/airfleet/dist/styles/theme.css" },
+      { id: "US.GC-01", provider: "🇺🇸 Google Cloud", group: "games", url: "https://api.usercentrics.eu/gvl/v3/en.json" },
+      { id: "US.FST-01", provider: "🇺🇸 Fastly", group: "games", url: "https://openoffice.apache.org/images/blog/rejected.png" },
+      { id: "US.FST-02", provider: "🇺🇸 Fastly", group: "games", url: "https://www.juniper.net/etc.clientlibs/juniper/clientlibs/clientlib-site/resources/fonts/lato/Lato-Regular.woff2" },
+      { id: "PL.AKM-01", provider: "🇵🇱 Akamai", group: "games", url: "https://www.lg.com/lg5-common-gp/library/jquery.min.js" },
+      { id: "PL.AKM-02", provider: "🇵🇱 Akamai", group: "games", url: "https://media-assets.stryker.com/is/image/stryker/gateway_1?$max_width_1410$" },
+      { id: "US.CDN77-01", provider: "🇺🇸 CDN77", group: "games", url: "https://www.winkgo.com/wp-content/themes/mts_sociallyviral/fonts/fontawesome-webfont.woff2" },
+      { id: "DE.CNTB-01", provider: "🇩🇪 Contabo", group: "games", url: "https://cloudlets.io/wp-content/themes/Avada/includes/lib/assets/fonts/fontawesome/webfonts/fa-solid-900.woff2" },
+      { id: "FR.SW-01", provider: "🇫🇷 Scaleway", group: "games", url: "https://renklisigorta.com.tr/teklif-al" },
+      { id: "US.CNST-01", provider: "🇺🇸 Constant", group: "games", url: "https://cdn.xuansiwei.com/common/lib/font-awesome/4.7.0/fontawesome-webfont.woff2?v=4.7.0" }
+    ];
+
+    const TEST_SUITE = [...FULL_TEST_SUITE, ...LEGACY_SUITE];
+
+    // Группировка
+    const groups = {
+      games: TEST_SUITE.filter(t => t.group === 'games'),
+      discord: TEST_SUITE.filter(t => t.group === 'discord'),
+      youtube: TEST_SUITE.filter(t => t.group === 'youtube'),
+      all: TEST_SUITE
     };
 
-    let CURRENT = "games";
+    // DOM элементы
+    const startButton = document.getElementById("start");
+    const statusEl = document.getElementById("status");
+    const log = document.getElementById("log");
+    const results = document.getElementById("results");
+    const httpCodes = {};
 
-    document.querySelectorAll('.tab').forEach(t => {
-      t.onclick = () => {
-        document.querySelector('.tab.active').classList.remove('active');
-        t.classList.add('active');
-        CURRENT = t.dataset.tab;
-      };
+    // Вкладки
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        const tabId = btn.dataset.tab;
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        localStorage.setItem('activeTab', tabId);
+      });
     });
 
-    const startButton = document.getElementById("start");
-    const status = document.getElementById("status");
-    const results = document.getElementById("results");
-    const log = document.getElementById("log");
-
-    function logPush(msg) {
-      log.textContent += msg + "\n";
-      log.scrollTop = log.scrollHeight;
+    // Рендер чекбоксов
+    function renderCheckboxes(containerId, tests) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      tests.forEach(test => {
+        const div = document.createElement('div');
+        div.className = 'server-item';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.id = `chk-${test.id}`;
+        input.dataset.testId = test.id;
+        input.checked = localStorage.getItem(`test-${test.id}`) !== 'false'; // по умолчанию включено
+        input.addEventListener('change', () => {
+          localStorage.setItem(`test-${test.id}`, input.checked);
+        });
+        const label = document.createElement('label');
+        label.htmlFor = `chk-${test.id}`;
+        label.textContent = `${test.provider} (${test.id})`;
+        div.appendChild(input);
+        div.appendChild(label);
+        container.appendChild(div);
+      });
     }
 
-    async function runTest(test) {
-      const row = results.insertRow();
-      row.insertCell().textContent = test.id;
-      row.insertCell().textContent = test.provider;
-      const cell = row.insertCell();
-      cell.textContent = "Проверка...";
+    // Загрузка вкладки из localStorage
+    const savedTab = localStorage.getItem('activeTab') || 'games';
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      if (btn.dataset.tab === savedTab) {
+        btn.click();
+      }
+    });
+
+    // Рендер всех списков
+    Object.entries(groups).forEach(([key, tests]) => {
+      renderCheckboxes(`list-${key}`, tests);
+    });
+
+    // Получение выбранных тестов
+    function getSelectedTests() {
+      return TEST_SUITE.filter(test => {
+        return localStorage.getItem(`test-${test.id}`) !== 'false';
+      });
+    }
+
+    // UI
+    const toggleUI = (locked) => {
+      startButton.disabled = locked;
+      startButton.textContent = locked ? "Проверка..." : "Запустить проверку";
+      statusEl.className = locked ? "status-checking" : "status-ready";
+    };
+
+    const setStatus = (col, text, cls) => {
+      col.textContent = text;
+      col.className = cls;
+      if (cls === "bad") statusEl.className = "status-error";
+    };
+
+    const logPush = (level, prefix, msg) => {
+      const now = new Date();
+      const ts = now.toLocaleTimeString([], { hour12: false }) + "." + now.getMilliseconds().toString().padStart(3, "0");
+      log.textContent += `[${ts}] ${prefix ? prefix + "/" : ""}${level}: ${msg}\n`;
+      log.scrollTop = log.scrollHeight;
+    };
+
+    const timeElapsed = t0 => `${(performance.now() - t0).toFixed(1)} мс`;
+
+    const getHttpStatus = id => httpCodes[id];
+
+    const getUniqueUrl = url => {
+      return url.includes('?') ? `${url}&t=${Math.random()}` : `${url}?t=${Math.random()}`;
+    };
+
+    // Основная логика проверки
+    const startOrchestrator = async () => {
+      statusEl.textContent = "Проверка ⏰";
+      statusEl.className = "status-checking";
+      while (results.rows.length > 1) results.deleteRow(1);
 
       try {
-        const res = await fetch(test.url + "?t=" + Math.random());
-        let reader = res.body.getReader();
-        let received = 0;
+        const selectedTests = getSelectedTests();
+        if (selectedTests.length === 0) {
+          logPush("WARN", null, "Нет выбранных серверов для проверки.");
+          statusEl.textContent = "Готов ⚡";
+          statusEl.className = "status-ready";
+          toggleUI(false);
+          return;
+        }
 
+        const tasks = [];
+        for (let t of selectedTests) {
+          tasks.push(checkDpi(t.id, t.provider, t.url));
+        }
+        await Promise.all(tasks);
+        statusEl.textContent = "Готов ⚡";
+        statusEl.className = "status-ready";
+      } catch (e) {
+        statusEl.textContent = "Ошибка ⚠️";
+        logPush("ERR", null, `Неожиданная ошибка: ${e}`);
+        statusEl.className = "status-error";
+      }
+      logPush("INFO", null, "Готово.");
+      toggleUI(false);
+    };
+
+    const checkDpi = async (id, provider, url) => {
+      const prefix = `DPI(#${id})`;
+      const t0 = performance.now();
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      const row = results.insertRow();
+      const numCell = row.insertCell();
+      const providerCell = row.insertCell();
+      const statusCell = row.insertCell();
+      numCell.textContent = id;
+      providerCell.textContent = provider;
+      setStatus(statusCell, "Проверка ⏰", "");
+
+      try {
+        const r = await fetch(getUniqueUrl(url), {
+          method: "GET",
+          credentials: "omit",
+          cache: "no-store",
+          signal: ctrl.signal,
+          redirect: "manual",
+          keepalive: true
+        });
+        logPush("INFO", prefix, `HTTP ${r.status}`);
+        httpCodes[id] = r.status;
+        const reader = r.body.getReader();
+        let received = 0, ok = false;
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            clearTimeout(timeoutId);
+            logPush("INFO", prefix, `Поток завершён (${timeElapsed(t0)})`);
+            if (!ok) {
+              logPush("WARN", prefix, "Данных недостаточно для подтверждения");
+              setStatus(statusCell, "Возможно, блокируется ⚠️", "");
+            }
+            break;
+          }
           received += value.byteLength;
-          if (received > 60000) break;
-        }
-
-        if (received < 60000) {
-          cell.textContent = "Обнаружено DPI";
-          cell.className = "bad";
-        } else {
-          cell.textContent = "Не обнаружено";
-          cell.className = "ok";
+          logPush("INFO", prefix, `Получено: ${value.byteLength} байт (всего: ${received})`);
+          if (!ok && received >= OK_THRESHOLD_BYTES) {
+            clearTimeout(timeoutId);
+            await reader.cancel();
+            ok = true;
+            logPush("INFO", prefix, `Достигнут порог (${timeElapsed(t0)})`);
+            setStatus(statusCell, "Не блокируется ✅", "ok");
+            break;
+          }
         }
       } catch (e) {
-        cell.textContent = "Ошибка";
-        cell.className = "bad";
+        clearTimeout(timeoutId);
+        if (e.name === "AbortError") {
+          const statusCode = getHttpStatus(id);
+          let reason = statusCode ? "ЧТЕНИЕ" : "СОЕД.";
+          logPush("ERR", prefix, `${reason} — таймаут (${timeElapsed(t0)})`);
+          setStatus(statusCell, statusCode ? "Блокируется! ❗️" : "Блокируется* ❗️", "bad");
+        } else {
+          logPush("ERR", prefix, `Ошибка: ${e}`);
+          setStatus(statusCell, "Ошибка проверки ⚠️", "");
+        }
       }
-    }
-
-    startButton.onclick = async () => {
-      results.innerHTML = `
-        <tr>
-          <th>#</th><th>Провайдер</th><th>Статус DPI</th>
-        </tr>`;
-
-      log.textContent = "";
-      status.textContent = "Проверка...";
-
-      for (let t of TABS[CURRENT]) await runTest(t);
-
-      status.textContent = "Готово ⚡";
     };
+
+    startButton.onclick = () => {
+      log.textContent = "";
+      toggleUI(true);
+      sessionStorage.clear();
+      startOrchestrator();
+    };
+
+    // ASN
+    const fetchAsn = async () => {
+      try {
+        const RIPE_API_URL = "https://stat.ripe.net/data/";
+        const ip = (await (await fetch(RIPE_API_URL + "whats-my-ip/data.json")).json()).data.ip;
+        const asn = (await (await fetch(RIPE_API_URL + "prefix-overview/data.json?resource=" + ip)).json()).data.asns[0];
+        const geo = (await (await fetch(RIPE_API_URL + "maxmind-geo-lite/data.json?resource=" + ip)).json()).data.located_resources[0].locations[0];
+        const el = document.getElementById("asn");
+        el.innerHTML = `ASN: <a href="https://bgp.he.net/AS${asn.asn}" target="_blank">AS${asn.asn}</a> (<i>${asn.holder}</i>) • ${geo.country}, ${geo.city || "—"}`;
+      } catch (err) {
+        console.error("Ошибка ASN:", err);
+      }
+    };
+
+    document.addEventListener("DOMContentLoaded", fetchAsn);
   </script>
 </body>
 </html>
