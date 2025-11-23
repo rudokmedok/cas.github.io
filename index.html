@@ -84,6 +84,42 @@
       display: block;
     }
 
+    .custom-input-area {
+      margin: 15px 0;
+      padding: 15px;
+      background: var(--card-bg);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    #custom-input {
+      width: 100%;
+      height: 100px;
+      padding: 10px;
+      background: #111;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: monospace;
+      resize: vertical;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      background: #333;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95em;
+      margin-right: 6px;
+      margin-top: 8px;
+    }
+
+    .btn:hover {
+      background: #444;
+    }
+
     .server-list {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -117,20 +153,6 @@
     .btn-group {
       display: flex;
       gap: 8px;
-    }
-
-    .btn {
-      padding: 8px 16px;
-      background: #333;
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.95em;
-    }
-
-    .btn:hover {
-      background: #444;
     }
 
     #start {
@@ -232,6 +254,7 @@
       #start { width: 100%; font-size: 1em; }
       th, td { padding: 6px 10px; font-size: 0.9em; }
       .controls { flex-direction: column; align-items: stretch; }
+      .custom-input-area { padding: 10px; }
     }
   </style>
 </head>
@@ -247,6 +270,7 @@
       <button class="tab-btn" data-tab="discord">Discord</button>
       <button class="tab-btn" data-tab="youtube">YouTube / RKN / Google</button>
       <button class="tab-btn" data-tab="cloud">Облачные провайдеры</button>
+      <button class="tab-btn" data-tab="custom">Свои серверы</button>
     </div>
 
     <div class="controls">
@@ -278,6 +302,16 @@
       <div class="server-list" id="list-cloud"></div>
     </div>
 
+    <!-- Свои -->
+    <div class="tab-content" id="tab-custom">
+      <div class="custom-input-area">
+        <textarea id="custom-input" placeholder="Введите домены или URL (через запятую, перенос строки или двоеточие):&#10;example.com&#10;https://test.ru, api.service.net:sub.domain.org"></textarea><br>
+        <button class="btn" id="add-custom">Добавить серверы</button>
+        <button class="btn" id="clear-custom">Очистить список</button>
+      </div>
+      <div class="server-list" id="list-custom"></div>
+    </div>
+
     <table id="results">
       <tr>
         <th>#</th>
@@ -299,7 +333,6 @@
     const OK_THRESHOLD_BYTES = 64 * 1024;
     let TIMEOUT_MS = 5000;
 
-    // Функция для создания тестов из хостов
     const makeTest = (id, provider, host, path = "/", group) => ({
       id,
       provider,
@@ -307,7 +340,7 @@
       url: `https://${host}${path}`
     });
 
-    // =============== ИГРОВЫЕ ===============
+    // ----- СТАНДАРТНЫЕ ТЕСТЫ -----
     const gamesList = [
       "cdn.cookielaw.org/scripttemplates/202501.2.0/otBannerSdk.js",
       "genshin.jmp.blue/characters/all#",
@@ -338,127 +371,85 @@
       return makeTest(`GAMES-${i+1}`, `🎮 ${host}`, host, path, 'games');
     });
 
-    // =============== DISCORD ===============
     const discordHosts = [
-      "discord.com",
-      "gateway.discord.gg",
-      "cdn.discordapp.com",
-      "discordapp.net",
-      "discordapp.com",
-      "discord.gg",
-      "media.discordapp.net",
-      "images-ext-1.discordapp.net",
-      "discord.app",
-      "discord.media",
-      "discordcdn.com",
-      "discord.dev",
-      "discord.new",
-      "discord.gift",
-      "discordstatus.com",
-      "dis.gd",
-      "discord.co",
+      "discord.com", "gateway.discord.gg", "cdn.discordapp.com", "discordapp.net",
+      "discordapp.com", "discord.gg", "media.discordapp.net", "images-ext-1.discordapp.net",
+      "discord.app", "discord.media", "discordcdn.com", "discord.dev", "discord.new",
+      "discord.gift", "discordstatus.com", "dis.gd", "discord.co",
       "discord-attachments-uploads-prd.storage.googleapis.com"
     ];
     const discordList = discordHosts.map((host, i) => 
       makeTest(`DISC-${i+1}`, `💬 ${host}`, host, "/", "discord")
     );
 
-    // =============== YOUTUBE / RKN / GOOGLE ===============
     const youtubeHosts = [
-      "cdn.cookielaw.org",
-      "api.usercentrics.eu",
-      "googleapis.com",
-      "gstatic.com",
-      "recaptcha-cn.net",
-      "recaptcha.net",
-      "botstop.com",
-      "hcaptcha.com",
-      "hcaptchastatus.com",
-      "speedtest.net",
-      "ooklaserver.net",
-      "speedtest.timernet.ru",
-      "spookla.alltelecom.ru"
+      "cdn.cookielaw.org", "api.usercentrics.eu", "googleapis.com", "gstatic.com",
+      "recaptcha-cn.net", "recaptcha.net", "botstop.com", "hcaptcha.com", "hcaptchastatus.com",
+      "speedtest.net", "ooklaserver.net", "speedtest.timernet.ru", "spookla.alltelecom.ru"
     ];
     const youtubeList = youtubeHosts.map((host, i) =>
       makeTest(`GOOG-${i+1}`, `🔍 ${host}`, host, "/", "youtube")
     );
 
-    // =============== CLOUD ===============
     const cloudHosts = [
-      // DigitalOcean
-      "digitalocean.com", "digitaloceanspaces.com", "do.co",
-      // Hetzner
-      "hetzner.com", "hetzner.de",
-      // OVH
-      "ovh.com", "ovh.net", "ovhcloud.com",
-      // Oracle
-      "oraclecloud.com", "oraclevcn.com",
-      // AWS
-      "amazonaws.com", "s3.amazonaws.com", "cloudfront.net",
-      "cloudsync-prod.s3.amazonaws.com",
-      "cloudsync-prod.s3-accelerate.amazonaws.com",
-      "prod-us-east-1-starwavecloudsync.s3.amazonaws.com",
-      "prod-us-west-2-starwavecloudsync.s3.amazonaws.com",
-      "prod-eu-west-1-starwavecloudsync.s3.amazonaws.com",
-      "prod-eu-central-1-starwavecloudsync.s3.amazonaws.com",
-      "prod-ap-northeast-1-starwavecloudsync.s3.amazonaws.com",
-      "prod-ap-southeast-1-starwavecloudsync.s3.amazonaws.com",
-      // Fastly
-      "fastly.net", "fastly.com",
-      // Akamai
-      "akamai.com", "akamaihd.net", "akamaiedge.net",
-      "akamaitechnologies.com", "akamaized.net",
-      "eaassets-a.akamaihd.net", "epicgames-download1.akamaized.net",
-      "fastly-download.epicgames.com",
-      // CDN77
-      "cdn77.com", "cdn77.org",
-      // Constant / Contabo
-      "constant.com", "contabo.com", "contabo.org", "cntb.eu",
-      // Scaleway
-      "scaleway.com", "scw.cloud",
-      // Cloudflare (все домены из списка)
-      "argotunnel.com", "cfargotunnel.com", "cfl.re", "cloudflare.com",
-      "cloudflare-dns.com", "cloudflare-ech.com", "cloudflare-esni.com",
-      "cloudflare-gateway.com", "cloudflare-quic.com", "cloudflare-stream.com",
-      "cloudflare-ipfs.com", "cloudflare-tv.com", "cloudflare-access.com",
-      "cloudflare-apps.com", "cloudflare-bolt.com", "cloudflare-client.com",
-      "cloudflare-insights.com", "cloudflare-ok.com", "cloudflare-partners.com",
-      "cloudflare-portal.com", "cloudflare-preview.com", "cloudflare-resolve.com",
-      "cloudflare-ssl.com", "cloudflare-status.com", "cloudflare-storage.com",
-      "cloudflare-test.com", "cloudflare-warp.com", "cloudflare.net",
-      "cloudflare.tv", "cloudflare.dev", "cloudflare.design", "cloudflare.network",
-      "cloudflare.cloud", "cloudflare.co", "cloudflare.us", "cloudflare.lol",
-      "cloudflare.blog", "cloudflarecp.com", "cloudflareaccess.com", "cloudflareapps.com",
-      "cloudflarebolt.com", "cloudflareclient.com", "cloudflareinsights.com",
-      "cloudflareok.com", "cloudflarepartners.com", "cloudflareportal.com",
-      "cloudflarepreview.com", "cloudflareresolve.com", "cloudflaressl.com",
-      "cloudflarestatus.com", "cloudflarestorage.com", "cloudflarestream.com",
-      "cloudflaretest.com", "cloudflarewarp.com", "cloudflareregistrar.com",
-      "cloudflareregistry.com", "cloudflarechallenge.com", "cloudflareworkers.com",
-      "cloudflareanycast.net", "cloudflarechina.cn", "cloudflareglobal.net",
-      "cloudflareinsights-cn.com", "cloudflareperf.com", "cloudflareprod.com",
-      "cloudflarestaging.com", "every1dns.net", "isbgpsafeyet.com", "one.one.one.one",
-      "pacloudflare.com", "pages.dev", "trycloudflare.com", "videodelivery.net",
-      "warp.plus", "workers.dev", "wsrv.nl", "as13335.net", "cfdata-staging.org",
-      "cfplat.com", "cfops.it", "cfops.net", "cfssl.com", "cfssl.org", "cfdata.com",
-      "cfdata.org", "cfdata.lol", "cf-ipfs.com", "cfworker-ipfs.com", "cf-test.com",
-      "cf-test-access.com", "cf-ns.com", "cf-ns.net", "cf-ns.site", "cf-ns.tech",
-      "cftest5.cn", "cftest6.cn", "cftest7.com", "cftest8.com", "cflare.co",
-      "cf-emailsecurity.net", "cloudflare-cn.com", "cloudflarechina.cn",
-      "cloudflarecn.net", "cloudflareinsights-cn.com", "cloudflarestoragegw.com",
-      "static-cloudflare.top"
+      "digitalocean.com","digitaloceanspaces.com","do.co","hetzner.com","hetzner.de",
+      "ovh.com","ovh.net","ovhcloud.com","oraclecloud.com","oraclevcn.com",
+      "amazonaws.com","s3.amazonaws.com","cloudfront.net","cloudsync-prod.s3.amazonaws.com",
+      "cloudsync-prod.s3-accelerate.amazonaws.com","prod-us-east-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-us-west-2-starwavecloudsync.s3.amazonaws.com","prod-eu-west-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-eu-central-1-starwavecloudsync.s3.amazonaws.com","prod-ap-northeast-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-ap-southeast-1-starwavecloudsync.s3.amazonaws.com","fastly.net","fastly.com",
+      "akamai.com","akamaihd.net","akamaiedge.net","akamaitechnologies.com","akamaized.net",
+      "eaassets-a.akamaihd.net","epicgames-download1.akamaized.net","fastly-download.epicgames.com",
+      "cdn77.com","cdn77.org","constant.com","contabo.com","contabo.org","cntb.eu",
+      "scaleway.com","scw.cloud","argotunnel.com","cfargotunnel.com","cfl.re","cloudflare.com",
+      "cloudflare-dns.com","cloudflare-ech.com","cloudflare-esni.com","cloudflare-gateway.com",
+      "cloudflare-quic.com","cloudflare-stream.com","cloudflare-ipfs.com","cloudflare-tv.com",
+      "cloudflare-access.com","cloudflare-apps.com","cloudflare-bolt.com","cloudflare-client.com",
+      "cloudflare-insights.com","cloudflare-ok.com","cloudflare-partners.com","cloudflare-portal.com",
+      "cloudflare-preview.com","cloudflare-resolve.com","cloudflare-ssl.com","cloudflare-status.com",
+      "cloudflare-storage.com","cloudflare-test.com","cloudflare-warp.com","cloudflare.net",
+      "cloudflare.tv","cloudflare.dev","cloudflare.design","cloudflare.network","cloudflare.cloud",
+      "cloudflare.co","cloudflare.us","cloudflare.lol","cloudflare.blog","cloudflarecp.com",
+      "cloudflareaccess.com","cloudflareapps.com","cloudflarebolt.com","cloudflareclient.com",
+      "cloudflareinsights.com","cloudflareok.com","cloudflarepartners.com","cloudflareportal.com",
+      "cloudflarepreview.com","cloudflareresolve.com","cloudflaressl.com","cloudflarestatus.com",
+      "cloudflarestorage.com","cloudflarestream.com","cloudflaretest.com","cloudflarewarp.com",
+      "cloudflareregistrar.com","cloudflareregistry.com","cloudflarechallenge.com","cloudflareworkers.com",
+      "cloudflareanycast.net","cloudflarechina.cn","cloudflareglobal.net","cloudflareinsights-cn.com",
+      "cloudflareperf.com","cloudflareprod.com","cloudflarestaging.com","every1dns.net","isbgpsafeyet.com",
+      "one.one.one.one","pacloudflare.com","pages.dev","trycloudflare.com","videodelivery.net",
+      "warp.plus","workers.dev","wsrv.nl","as13335.net","cfdata-staging.org","cfplat.com","cfops.it",
+      "cfops.net","cfssl.com","cfssl.org","cfdata.com","cfdata.org","cfdata.lol","cf-ipfs.com",
+      "cfworker-ipfs.com","cf-test.com","cf-test-access.com","cf-ns.com","cf-ns.net","cf-ns.site",
+      "cf-ns.tech","cftest5.cn","cftest6.cn","cftest7.com","cftest8.com","cflare.co","cf-emailsecurity.net",
+      "cloudflare-cn.com","cloudflarechina.cn","cloudflarecn.net","cloudflareinsights-cn.com",
+      "cloudflarestoragegw.com","static-cloudflare.top"
     ];
     const cloudList = cloudHosts.map((host, i) =>
       makeTest(`CLOUD-${i+1}`, `☁️ ${host}`, host, "/", "cloud")
     );
 
-    const TEST_SUITE = [...gamesList, ...discordList, ...youtubeList, ...cloudList];
+    let customCounter = 0;
+    // Загружаем пользовательские тесты из localStorage
+    const customList = [];
+    for (let i = 1; ; i++) {
+      const item = localStorage.getItem(`custom-test-${i}`);
+      if (!item) break;
+      try {
+        const test = JSON.parse(item);
+        customList.push(test);
+        customCounter = i;
+      } catch (e) {}
+    }
 
+    const TEST_SUITE = [...gamesList, ...discordList, ...youtubeList, ...cloudList, ...customList];
     const groups = {
       games: gamesList,
       discord: discordList,
       youtube: youtubeList,
-      cloud: cloudList
+      cloud: cloudList,
+      custom: customList
     };
 
     // DOM
@@ -468,7 +459,7 @@
     const results = document.getElementById("results");
     const httpCodes = {};
 
-    // Вкладки
+    // Вкладки (с двойным кликом)
     let lastClickTime = 0;
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -483,10 +474,8 @@
         document.getElementById(`tab-${tabId}`).classList.add('active');
         localStorage.setItem('activeTab', tabId);
 
-        if (isDouble) {
-          // Снять все
+        if (isDouble && tabId !== 'custom') {
           TEST_SUITE.forEach(t => localStorage.setItem(`test-${t.id}`, 'false'));
-          // Выбрать текущую группу
           groups[tabId].forEach(t => localStorage.setItem(`test-${t.id}`, 'true'));
           renderAllLists();
         }
@@ -502,6 +491,60 @@
     document.getElementById('deselect-all').addEventListener('click', () => {
       TEST_SUITE.forEach(t => localStorage.setItem(`test-${t.id}`, 'false'));
       renderAllLists();
+    });
+
+    // Свои серверы
+    document.getElementById('add-custom').addEventListener('click', () => {
+      const input = document.getElementById('custom-input').value.trim();
+      if (!input) return;
+
+      // Разделители: запятая, двоеточие, перенос строки
+      const rawEntries = input.split(/[,:\n]+/).map(s => s.trim()).filter(s => s);
+
+      const newTests = [];
+      rawEntries.forEach(entry => {
+        try {
+          let urlObj;
+          if (entry.startsWith('http://') || entry.startsWith('https://')) {
+            urlObj = new URL(entry);
+          } else {
+            urlObj = new URL('https://' + entry);
+          }
+          const host = urlObj.hostname;
+          const path = urlObj.pathname === '/' ? (host.includes('dubybot.live') ? '/1MB.bin' : '/') : urlObj.pathname;
+          customCounter++;
+          const test = makeTest(`CUSTOM-${customCounter}`, `🔧 ${host}`, host, path, 'custom');
+          newTests.push(test);
+          localStorage.setItem(`custom-test-${customCounter}`, JSON.stringify(test));
+        } catch (e) {
+          logPush('WARN', 'CUSTOM', `Некорректный URL: ${entry}`);
+        }
+      });
+
+      if (newTests.length > 0) {
+        groups.custom.push(...newTests);
+        TEST_SUITE.push(...newTests);
+        renderAllLists();
+        document.getElementById('custom-input').value = '';
+        logPush('INFO', 'CUSTOM', `Добавлено ${newTests.length} серверов.`);
+      }
+    });
+
+    document.getElementById('clear-custom').addEventListener('click', () => {
+      if (!confirm('Очистить все пользовательские серверы?')) return;
+      // Удаляем из localStorage
+      let i = 1;
+      while (localStorage.getItem(`custom-test-${i}`)) {
+        localStorage.removeItem(`custom-test-${i}`);
+        i++;
+      }
+      // Обновляем список
+      groups.custom.length = 0;
+      // Обновляем TEST_SUITE (пересоздаём)
+      const fixedSuite = [...gamesList, ...discordList, ...youtubeList, ...cloudList];
+      Object.assign(TEST_SUITE, fixedSuite);
+      renderAllLists();
+      logPush('INFO', 'CUSTOM', 'Пользовательские серверы удалены.');
     });
 
     // Рендер
@@ -636,7 +679,6 @@
           if (done) {
             clearTimeout(timeoutId);
             if (!ok) {
-              logPush("WARN", prefix, "Данных недостаточно");
               setStatus(statusCell, "Возможно, блокируется ⚠️", "");
             }
             break;
