@@ -495,40 +495,47 @@
 
     // Свои серверы
     document.getElementById('add-custom').addEventListener('click', () => {
-      const input = document.getElementById('custom-input').value.trim();
-      if (!input) return;
+  const input = document.getElementById('custom-input').value.trim();
+  if (!input) return;
 
-      // Разделители: запятая, двоеточие, перенос строки
-      const rawEntries = input.split(/[,:\n]+/).map(s => s.trim()).filter(s => s);
+  // Разделяем только по запятым и переносам строк, но НЕ по двоеточиям внутри URL
+  const rawEntries = input
+    .split(/[\n,]+/)         // Только \n и запятая — безопасные разделители
+    .map(s => s.trim())
+    .filter(s => s);
 
-      const newTests = [];
-      rawEntries.forEach(entry => {
-        try {
-          let urlObj;
-          if (entry.startsWith('http://') || entry.startsWith('https://')) {
-            urlObj = new URL(entry);
-          } else {
-            urlObj = new URL('https://' + entry);
-          }
-          const host = urlObj.hostname;
-          const path = urlObj.pathname === '/' ? (host.includes('dubybot.live') ? '/1MB.bin' : '/') : urlObj.pathname;
-          customCounter++;
-          const test = makeTest(`CUSTOM-${customCounter}`, `🔧 ${host}`, host, path, 'custom');
-          newTests.push(test);
-          localStorage.setItem(`custom-test-${customCounter}`, JSON.stringify(test));
-        } catch (e) {
-          logPush('WARN', 'CUSTOM', `Некорректный URL: ${entry}`);
-        }
-      });
-
-      if (newTests.length > 0) {
-        groups.custom.push(...newTests);
-        TEST_SUITE.push(...newTests);
-        renderAllLists();
-        document.getElementById('custom-input').value = '';
-        logPush('INFO', 'CUSTOM', `Добавлено ${newTests.length} серверов.`);
+  const newTests = [];
+  rawEntries.forEach(entry => {
+    try {
+      let urlObj;
+      if (entry.startsWith('http://') || entry.startsWith('https://')) {
+        urlObj = new URL(entry);
+      } else {
+        // Добавляем https://, если протокол не указан
+        urlObj = new URL('https://' + entry);
       }
-    });
+      const host = urlObj.hostname;
+      const path = urlObj.pathname === '/' 
+        ? (host.includes('dubybot.live') ? '/1MB.bin' : '/') 
+        : urlObj.pathname + (urlObj.search || '');
+      
+      customCounter++;
+      const test = makeTest(`CUSTOM-${customCounter}`, `🔧 ${host}`, host, path, 'custom');
+      newTests.push(test);
+      localStorage.setItem(`custom-test-${customCounter}`, JSON.stringify(test));
+    } catch (e) {
+      logPush('WARN', 'CUSTOM', `Некорректный URL: ${entry}`);
+    }
+  });
+
+  if (newTests.length > 0) {
+    groups.custom.push(...newTests);
+    TEST_SUITE.push(...newTests);
+    renderAllLists();
+    document.getElementById('custom-input').value = '';
+    logPush('INFO', 'CUSTOM', `Добавлено ${newTests.length} серверов.`);
+  }
+});
 
     document.getElementById('clear-custom').addEventListener('click', () => {
       if (!confirm('Очистить все пользовательские серверы?')) return;
