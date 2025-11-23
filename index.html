@@ -86,7 +86,7 @@
 
     .server-list {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 12px;
       margin: 15px 0;
     }
@@ -112,6 +112,25 @@
       flex-wrap: wrap;
       gap: 10px;
       margin: 15px 0;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      background: #333;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95em;
+    }
+
+    .btn:hover {
+      background: #444;
     }
 
     #start {
@@ -212,6 +231,7 @@
       .server-list { grid-template-columns: 1fr; }
       #start { width: 100%; font-size: 1em; }
       th, td { padding: 6px 10px; font-size: 0.9em; }
+      .controls { flex-direction: column; align-items: stretch; }
     }
   </style>
 </head>
@@ -225,8 +245,17 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="games">Игровые</button>
       <button class="tab-btn" data-tab="discord">Discord</button>
-      <button class="tab-btn" data-tab="youtube">YouTube / RKN</button>
-      <button class="tab-btn" data-tab="all">Все</button>
+      <button class="tab-btn" data-tab="youtube">YouTube / RKN / Google</button>
+      <button class="tab-btn" data-tab="cloud">Облачные провайдеры</button>
+    </div>
+
+    <div class="controls">
+      <div class="btn-group">
+        <button class="btn" id="select-all">Выбрать все</button>
+        <button class="btn" id="deselect-all">Снять все</button>
+      </div>
+      <button id="start">Запустить проверку</button>
+      <span>Статус: <span id="status" class="status-ready">Готов ⚡</span></span>
     </div>
 
     <!-- Игровые -->
@@ -239,19 +268,14 @@
       <div class="server-list" id="list-discord"></div>
     </div>
 
-    <!-- YouTube / RKN -->
+    <!-- YouTube / RKN / Google -->
     <div class="tab-content" id="tab-youtube">
       <div class="server-list" id="list-youtube"></div>
     </div>
 
-    <!-- Все -->
-    <div class="tab-content" id="tab-all">
-      <div class="server-list" id="list-all"></div>
-    </div>
-
-    <div class="controls">
-      <button id="start">Запустить проверку</button>
-      <span>Статус: <span id="status" class="status-ready">Готов ⚡</span></span>
+    <!-- Облачные -->
+    <div class="tab-content" id="tab-cloud">
+      <div class="server-list" id="list-cloud"></div>
     </div>
 
     <table id="results">
@@ -272,57 +296,172 @@
   </div>
 
   <script>
-    // Глобальные настройки
     const OK_THRESHOLD_BYTES = 64 * 1024;
     let TIMEOUT_MS = 5000;
 
-    // Все тесты
-    const FULL_TEST_SUITE = [
-      { id: "US.CF-01", provider: "🇺🇸 Cloudflare", group: "games", url: "https://cdn.cookielaw.org/scripttemplates/202501.2.0/otBannerSdk.js" },
-      { id: "US.CF-02", provider: "🇺🇸 Cloudflare", group: "games", url: "https://genshin.jmp.blue/characters/all#" },
-      { id: "US.CF-03", provider: "🇺🇸 Cloudflare", group: "games", url: "https://api.frankfurter.dev/v1/2000-01-01..2002-12-31" },
-      { id: "US.DO-01", provider: "🇺🇸 DigitalOcean", group: "games", url: "https://genderize.io/" },
-      { id: "DE.HE-01", provider: "🇩🇪 Hetzner", group: "games", url: "https://j.dejure.org/jcg/doctrine/doctrine_banner.webp" },
-      { id: "FI.HE-01", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-01.dubybot.live/1MB.bin" },
-      { id: "FI.HE-02", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-02.dubybot.live/1MB.bin" },
-      { id: "FI.HE-03", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-05.dubybot.live/1MB.bin" },
-      { id: "FI.HE-04", provider: "🇫🇮 Hetzner", group: "games", url: "https://tcp1620-06.dubybot.live/1MB.bin" },
-      { id: "FR.OVH-01", provider: "🇫🇷 OVH", group: "games", url: "https://eu.api.ovh.com/console/rapidoc-min.js" },
-      { id: "FR.OVH-02", provider: "🇫🇷 OVH", group: "games", url: "https://ovh.sfx.ovh/10M.bin" },
-      { id: "SE.OR-01", provider: "🇸🇪 Oracle", group: "games", url: "https://oracle.sfx.ovh/10M.bin" },
+    // Функция для создания тестов из хостов
+    const makeTest = (id, provider, host, path = "/", group) => ({
+      id,
+      provider,
+      group,
+      url: `https://${host}${path}`
+    });
 
-      // Discord
-      { id: "DISC-01", provider: "🌍 Discord", group: "discord", url: "https://discord.com" },
-      { id: "DISC-02", provider: "🌍 Discord API", group: "discord", url: "https://discord.com/api/v9/gateway" },
+    // =============== ИГРОВЫЕ ===============
+    const gamesList = [
+      "cdn.cookielaw.org/scripttemplates/202501.2.0/otBannerSdk.js",
+      "genshin.jmp.blue/characters/all#",
+      "api.frankfurter.dev/v1/2000-01-01..2002-12-31",
+      "genderize.io/",
+      "j.dejure.org/jcg/doctrine/doctrine_banner.webp",
+      "tcp1620-01.dubybot.live/1MB.bin",
+      "tcp1620-02.dubybot.live/1MB.bin",
+      "tcp1620-05.dubybot.live/1MB.bin",
+      "tcp1620-06.dubybot.live/1MB.bin",
+      "eu.api.ovh.com/console/rapidoc-min.js",
+      "ovh.sfx.ovh/10M.bin",
+      "oracle.sfx.ovh/10M.bin",
+      "tms.delta.com/delta/dl_anderson/Bootstrap.js",
+      "corp.kaltura.com/wp-content/cache/min/1/wp-content/themes/airfleet/dist/styles/theme.css",
+      "api.usercentrics.eu/gvl/v3/en.json",
+      "openoffice.apache.org/images/blog/rejected.png",
+      "www.juniper.net/etc.clientlibs/juniper/clientlibs/clientlib-site/resources/fonts/lato/Lato-Regular.woff2",
+      "www.lg.com/lg5-common-gp/library/jquery.min.js",
+      "media-assets.stryker.com/is/image/stryker/gateway_1?$max_width_1410$",
+      "www.winkgo.com/wp-content/themes/mts_sociallyviral/fonts/fontawesome-webfont.woff2",
+      "cloudlets.io/wp-content/themes/Avada/includes/lib/assets/fonts/fontawesome/webfonts/fa-solid-900.woff2",
+      "renklisigorta.com.tr/teklif-al",
+      "cdn.xuansiwei.com/common/lib/font-awesome/4.7.0/fontawesome-webfont.woff2?v=4.7.0"
+    ].map((full, i) => {
+      const [host, ...rest] = full.split('/');
+      const path = '/' + rest.join('/');
+      return makeTest(`GAMES-${i+1}`, `🎮 ${host}`, host, path, 'games');
+    });
 
+    // =============== DISCORD ===============
+    const discordHosts = [
+      "discord.com",
+      "gateway.discord.gg",
+      "cdn.discordapp.com",
+      "discordapp.net",
+      "discordapp.com",
+      "discord.gg",
+      "media.discordapp.net",
+      "images-ext-1.discordapp.net",
+      "discord.app",
+      "discord.media",
+      "discordcdn.com",
+      "discord.dev",
+      "discord.new",
+      "discord.gift",
+      "discordstatus.com",
+      "dis.gd",
+      "discord.co",
+      "discord-attachments-uploads-prd.storage.googleapis.com"
     ];
+    const discordList = discordHosts.map((host, i) => 
+      makeTest(`DISC-${i+1}`, `💬 ${host}`, host, "/", "discord")
+    );
 
-    // Дублируем оригинальные тесты из вопроса (без дублирования групп)
-    const LEGACY_SUITE = [
-      { id: "DE.AWS-01", provider: "🇩🇪 AWS", group: "games", url: "https://tms.delta.com/delta/dl_anderson/Bootstrap.js" },
-      { id: "US.AWS-01", provider: "🇺🇸 AWS", group: "games", url: "https://corp.kaltura.com/wp-content/cache/min/1/wp-content/themes/airfleet/dist/styles/theme.css" },
-      { id: "US.GC-01", provider: "🇺🇸 Google Cloud", group: "games", url: "https://api.usercentrics.eu/gvl/v3/en.json" },
-      { id: "US.FST-01", provider: "🇺🇸 Fastly", group: "games", url: "https://openoffice.apache.org/images/blog/rejected.png" },
-      { id: "US.FST-02", provider: "🇺🇸 Fastly", group: "games", url: "https://www.juniper.net/etc.clientlibs/juniper/clientlibs/clientlib-site/resources/fonts/lato/Lato-Regular.woff2" },
-      { id: "PL.AKM-01", provider: "🇵🇱 Akamai", group: "games", url: "https://www.lg.com/lg5-common-gp/library/jquery.min.js" },
-      { id: "PL.AKM-02", provider: "🇵🇱 Akamai", group: "games", url: "https://media-assets.stryker.com/is/image/stryker/gateway_1?$max_width_1410$" },
-      { id: "US.CDN77-01", provider: "🇺🇸 CDN77", group: "games", url: "https://www.winkgo.com/wp-content/themes/mts_sociallyviral/fonts/fontawesome-webfont.woff2" },
-      { id: "DE.CNTB-01", provider: "🇩🇪 Contabo", group: "games", url: "https://cloudlets.io/wp-content/themes/Avada/includes/lib/assets/fonts/fontawesome/webfonts/fa-solid-900.woff2" },
-      { id: "FR.SW-01", provider: "🇫🇷 Scaleway", group: "games", url: "https://renklisigorta.com.tr/teklif-al" },
-      { id: "US.CNST-01", provider: "🇺🇸 Constant", group: "games", url: "https://cdn.xuansiwei.com/common/lib/font-awesome/4.7.0/fontawesome-webfont.woff2?v=4.7.0" }
+    // =============== YOUTUBE / RKN / GOOGLE ===============
+    const youtubeHosts = [
+      "cdn.cookielaw.org",
+      "api.usercentrics.eu",
+      "googleapis.com",
+      "gstatic.com",
+      "recaptcha-cn.net",
+      "recaptcha.net",
+      "botstop.com",
+      "hcaptcha.com",
+      "hcaptchastatus.com",
+      "speedtest.net",
+      "ooklaserver.net",
+      "speedtest.timernet.ru",
+      "spookla.alltelecom.ru"
     ];
+    const youtubeList = youtubeHosts.map((host, i) =>
+      makeTest(`GOOG-${i+1}`, `🔍 ${host}`, host, "/", "youtube")
+    );
 
-    const TEST_SUITE = [...FULL_TEST_SUITE, ...LEGACY_SUITE];
+    // =============== CLOUD ===============
+    const cloudHosts = [
+      // DigitalOcean
+      "digitalocean.com", "digitaloceanspaces.com", "do.co",
+      // Hetzner
+      "hetzner.com", "hetzner.de",
+      // OVH
+      "ovh.com", "ovh.net", "ovhcloud.com",
+      // Oracle
+      "oraclecloud.com", "oraclevcn.com",
+      // AWS
+      "amazonaws.com", "s3.amazonaws.com", "cloudfront.net",
+      "cloudsync-prod.s3.amazonaws.com",
+      "cloudsync-prod.s3-accelerate.amazonaws.com",
+      "prod-us-east-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-us-west-2-starwavecloudsync.s3.amazonaws.com",
+      "prod-eu-west-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-eu-central-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-ap-northeast-1-starwavecloudsync.s3.amazonaws.com",
+      "prod-ap-southeast-1-starwavecloudsync.s3.amazonaws.com",
+      // Fastly
+      "fastly.net", "fastly.com",
+      // Akamai
+      "akamai.com", "akamaihd.net", "akamaiedge.net",
+      "akamaitechnologies.com", "akamaized.net",
+      "eaassets-a.akamaihd.net", "epicgames-download1.akamaized.net",
+      "fastly-download.epicgames.com",
+      // CDN77
+      "cdn77.com", "cdn77.org",
+      // Constant / Contabo
+      "constant.com", "contabo.com", "contabo.org", "cntb.eu",
+      // Scaleway
+      "scaleway.com", "scw.cloud",
+      // Cloudflare (все домены из списка)
+      "argotunnel.com", "cfargotunnel.com", "cfl.re", "cloudflare.com",
+      "cloudflare-dns.com", "cloudflare-ech.com", "cloudflare-esni.com",
+      "cloudflare-gateway.com", "cloudflare-quic.com", "cloudflare-stream.com",
+      "cloudflare-ipfs.com", "cloudflare-tv.com", "cloudflare-access.com",
+      "cloudflare-apps.com", "cloudflare-bolt.com", "cloudflare-client.com",
+      "cloudflare-insights.com", "cloudflare-ok.com", "cloudflare-partners.com",
+      "cloudflare-portal.com", "cloudflare-preview.com", "cloudflare-resolve.com",
+      "cloudflare-ssl.com", "cloudflare-status.com", "cloudflare-storage.com",
+      "cloudflare-test.com", "cloudflare-warp.com", "cloudflare.net",
+      "cloudflare.tv", "cloudflare.dev", "cloudflare.design", "cloudflare.network",
+      "cloudflare.cloud", "cloudflare.co", "cloudflare.us", "cloudflare.lol",
+      "cloudflare.blog", "cloudflarecp.com", "cloudflareaccess.com", "cloudflareapps.com",
+      "cloudflarebolt.com", "cloudflareclient.com", "cloudflareinsights.com",
+      "cloudflareok.com", "cloudflarepartners.com", "cloudflareportal.com",
+      "cloudflarepreview.com", "cloudflareresolve.com", "cloudflaressl.com",
+      "cloudflarestatus.com", "cloudflarestorage.com", "cloudflarestream.com",
+      "cloudflaretest.com", "cloudflarewarp.com", "cloudflareregistrar.com",
+      "cloudflareregistry.com", "cloudflarechallenge.com", "cloudflareworkers.com",
+      "cloudflareanycast.net", "cloudflarechina.cn", "cloudflareglobal.net",
+      "cloudflareinsights-cn.com", "cloudflareperf.com", "cloudflareprod.com",
+      "cloudflarestaging.com", "every1dns.net", "isbgpsafeyet.com", "one.one.one.one",
+      "pacloudflare.com", "pages.dev", "trycloudflare.com", "videodelivery.net",
+      "warp.plus", "workers.dev", "wsrv.nl", "as13335.net", "cfdata-staging.org",
+      "cfplat.com", "cfops.it", "cfops.net", "cfssl.com", "cfssl.org", "cfdata.com",
+      "cfdata.org", "cfdata.lol", "cf-ipfs.com", "cfworker-ipfs.com", "cf-test.com",
+      "cf-test-access.com", "cf-ns.com", "cf-ns.net", "cf-ns.site", "cf-ns.tech",
+      "cftest5.cn", "cftest6.cn", "cftest7.com", "cftest8.com", "cflare.co",
+      "cf-emailsecurity.net", "cloudflare-cn.com", "cloudflarechina.cn",
+      "cloudflarecn.net", "cloudflareinsights-cn.com", "cloudflarestoragegw.com",
+      "static-cloudflare.top"
+    ];
+    const cloudList = cloudHosts.map((host, i) =>
+      makeTest(`CLOUD-${i+1}`, `☁️ ${host}`, host, "/", "cloud")
+    );
 
-    // Группировка
+    const TEST_SUITE = [...gamesList, ...discordList, ...youtubeList, ...cloudList];
+
     const groups = {
-      games: TEST_SUITE.filter(t => t.group === 'games'),
-      discord: TEST_SUITE.filter(t => t.group === 'discord'),
-      youtube: TEST_SUITE.filter(t => t.group === 'youtube'),
-      all: TEST_SUITE
+      games: gamesList,
+      discord: discordList,
+      youtube: youtubeList,
+      cloud: cloudList
     };
 
-    // DOM элементы
+    // DOM
     const startButton = document.getElementById("start");
     const statusEl = document.getElementById("status");
     const log = document.getElementById("log");
@@ -330,18 +469,42 @@
     const httpCodes = {};
 
     // Вкладки
+    let lastClickTime = 0;
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        const now = Date.now();
+        const tabId = btn.dataset.tab;
+        const isDouble = (now - lastClickTime < 400);
+        lastClickTime = now;
+
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
-        const tabId = btn.dataset.tab;
         document.getElementById(`tab-${tabId}`).classList.add('active');
         localStorage.setItem('activeTab', tabId);
+
+        if (isDouble) {
+          // Снять все
+          TEST_SUITE.forEach(t => localStorage.setItem(`test-${t.id}`, 'false'));
+          // Выбрать текущую группу
+          groups[tabId].forEach(t => localStorage.setItem(`test-${t.id}`, 'true'));
+          renderAllLists();
+        }
       });
     });
 
-    // Рендер чекбоксов
+    // Кнопки
+    document.getElementById('select-all').addEventListener('click', () => {
+      TEST_SUITE.forEach(t => localStorage.setItem(`test-${t.id}`, 'true'));
+      renderAllLists();
+    });
+
+    document.getElementById('deselect-all').addEventListener('click', () => {
+      TEST_SUITE.forEach(t => localStorage.setItem(`test-${t.id}`, 'false'));
+      renderAllLists();
+    });
+
+    // Рендер
     function renderCheckboxes(containerId, tests) {
       const container = document.getElementById(containerId);
       container.innerHTML = '';
@@ -352,37 +515,37 @@
         input.type = 'checkbox';
         input.id = `chk-${test.id}`;
         input.dataset.testId = test.id;
-        input.checked = localStorage.getItem(`test-${test.id}`) !== 'false'; // по умолчанию включено
+        input.checked = localStorage.getItem(`test-${test.id}`) === 'true';
         input.addEventListener('change', () => {
-          localStorage.setItem(`test-${test.id}`, input.checked);
+          localStorage.setItem(`test-${test.id}`, input.checked ? 'true' : 'false');
         });
         const label = document.createElement('label');
         label.htmlFor = `chk-${test.id}`;
-        label.textContent = `${test.provider} (${test.id})`;
+        label.textContent = test.provider;
         div.appendChild(input);
         div.appendChild(label);
         container.appendChild(div);
       });
     }
 
-    // Загрузка вкладки из localStorage
+    function renderAllLists() {
+      Object.entries(groups).forEach(([key, tests]) => {
+        renderCheckboxes(`list-${key}`, tests);
+      });
+    }
+
+    // Загрузка
     const savedTab = localStorage.getItem('activeTab') || 'games';
     document.querySelectorAll('.tab-btn').forEach(btn => {
       if (btn.dataset.tab === savedTab) {
         btn.click();
       }
     });
+    renderAllLists();
 
-    // Рендер всех списков
-    Object.entries(groups).forEach(([key, tests]) => {
-      renderCheckboxes(`list-${key}`, tests);
-    });
-
-    // Получение выбранных тестов
+    // Получение выбранных
     function getSelectedTests() {
-      return TEST_SUITE.filter(test => {
-        return localStorage.getItem(`test-${test.id}`) !== 'false';
-      });
+      return TEST_SUITE.filter(test => localStorage.getItem(`test-${test.id}`) === 'true');
     }
 
     // UI
@@ -413,32 +576,29 @@
       return url.includes('?') ? `${url}&t=${Math.random()}` : `${url}?t=${Math.random()}`;
     };
 
-    // Основная логика проверки
+    // Проверка
     const startOrchestrator = async () => {
       statusEl.textContent = "Проверка ⏰";
       statusEl.className = "status-checking";
       while (results.rows.length > 1) results.deleteRow(1);
 
-      try {
-        const selectedTests = getSelectedTests();
-        if (selectedTests.length === 0) {
-          logPush("WARN", null, "Нет выбранных серверов для проверки.");
-          statusEl.textContent = "Готов ⚡";
-          statusEl.className = "status-ready";
-          toggleUI(false);
-          return;
-        }
+      const selected = getSelectedTests();
+      if (selected.length === 0) {
+        logPush("WARN", null, "Нет выбранных серверов.");
+        statusEl.textContent = "Готов ⚡";
+        statusEl.className = "status-ready";
+        toggleUI(false);
+        return;
+      }
 
-        const tasks = [];
-        for (let t of selectedTests) {
-          tasks.push(checkDpi(t.id, t.provider, t.url));
-        }
+      try {
+        const tasks = selected.map(t => checkDpi(t.id, t.provider, t.url));
         await Promise.all(tasks);
         statusEl.textContent = "Готов ⚡";
         statusEl.className = "status-ready";
       } catch (e) {
         statusEl.textContent = "Ошибка ⚠️";
-        logPush("ERR", null, `Неожиданная ошибка: ${e}`);
+        logPush("ERR", null, `Ошибка: ${e}`);
         statusEl.className = "status-error";
       }
       logPush("INFO", null, "Готово.");
@@ -475,20 +635,18 @@
           const { done, value } = await reader.read();
           if (done) {
             clearTimeout(timeoutId);
-            logPush("INFO", prefix, `Поток завершён (${timeElapsed(t0)})`);
             if (!ok) {
-              logPush("WARN", prefix, "Данных недостаточно для подтверждения");
+              logPush("WARN", prefix, "Данных недостаточно");
               setStatus(statusCell, "Возможно, блокируется ⚠️", "");
             }
             break;
           }
           received += value.byteLength;
-          logPush("INFO", prefix, `Получено: ${value.byteLength} байт (всего: ${received})`);
           if (!ok && received >= OK_THRESHOLD_BYTES) {
             clearTimeout(timeoutId);
             await reader.cancel();
             ok = true;
-            logPush("INFO", prefix, `Достигнут порог (${timeElapsed(t0)})`);
+            logPush("INFO", prefix, `Порог пройден (${timeElapsed(t0)})`);
             setStatus(statusCell, "Не блокируется ✅", "ok");
             break;
           }
@@ -497,12 +655,11 @@
         clearTimeout(timeoutId);
         if (e.name === "AbortError") {
           const statusCode = getHttpStatus(id);
-          let reason = statusCode ? "ЧТЕНИЕ" : "СОЕД.";
-          logPush("ERR", prefix, `${reason} — таймаут (${timeElapsed(t0)})`);
           setStatus(statusCell, statusCode ? "Блокируется! ❗️" : "Блокируется* ❗️", "bad");
+          logPush("ERR", prefix, `Таймаут (${timeElapsed(t0)})`);
         } else {
           logPush("ERR", prefix, `Ошибка: ${e}`);
-          setStatus(statusCell, "Ошибка проверки ⚠️", "");
+          setStatus(statusCell, "Ошибка ⚠️", "");
         }
       }
     };
@@ -510,7 +667,6 @@
     startButton.onclick = () => {
       log.textContent = "";
       toggleUI(true);
-      sessionStorage.clear();
       startOrchestrator();
     };
 
@@ -524,7 +680,7 @@
         const el = document.getElementById("asn");
         el.innerHTML = `ASN: <a href="https://bgp.he.net/AS${asn.asn}" target="_blank">AS${asn.asn}</a> (<i>${asn.holder}</i>) • ${geo.country}, ${geo.city || "—"}`;
       } catch (err) {
-        console.error("Ошибка ASN:", err);
+        console.error("ASN error:", err);
       }
     };
 
