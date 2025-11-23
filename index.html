@@ -1,204 +1,140 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RU :: TCP 16-20 DPI Checker</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RudokMedok :: DPI Checker</title>
   <style>
-  body {
-      font: 1em/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      background: #f5f7fa;
-      color: #333;
-    }
-
-    .header {
-      font-size: 1.2em;
-      margin: 0 0.5em 0;
-      color: #1a1a1a;
-    }
-
-    #status {
-      font-weight: 600;
-    }
-
-    .status-ready {
-      color: #28a745;
-    }
-
-    .status-checking {
-      color: #007bff;
-    }
-
-    .status-error {
-      color: #dc3545;
-    }
-
-    #start {
-      font-size: 1.2em;
-      padding: .8em 1.5em;
-      background: #ff008b;
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+      background: linear-gradient(135deg, #000, #2b2b2b);
       color: #fff;
-      border: 0;
-      border-radius: 6px;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    header img {
+      height: 40px;
+    }
+
+    .tabs {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tab {
+      padding: 10px 20px;
       cursor: pointer;
-      transition: background .3s, transform .1s;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      transition: 0.3s;
     }
 
-    #start:hover {
-      background: #d40074;
-      transform: translateY(-2px);
+    .tab.active {
+      background: #fff;
+      color: #000;
+      font-weight: bold;
     }
 
-    #start:disabled {
-      background: #6c757d;
-      cursor: not-allowed;
+    .container {
+      padding: 20px;
     }
 
-    hr {
-      border-top: 1px solid #e0e0e0;
-      margin: 20px 0;
+    button {
+      padding: 10px 20px;
+      font-size: 1.1em;
+      border: 0;
+      background: #fff;
+      color: #000;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      opacity: 0.8;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, .1);
-      border-radius: 8px;
+      margin-top: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 10px;
       overflow: hidden;
-      margin-top: 0.2em;
     }
 
-    th,
-    td {
-      padding: 4px 15px;
-      text-align: left;
-      border-bottom: 1px solid #e0e0e0;
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     th {
-      background: #007bff;
-      color: #fff;
-      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
     }
 
-    tr:last-child td {
-      border-bottom: 0;
-    }
-
-    .ok {
-      color: #28a745;
-      font-weight: 500;
-    }
-
-    .bad {
-      color: #dc3545;
-      font-weight: 500;
-    }
+    .ok { color: #00ff85; font-weight: bold; }
+    .bad { color: #ff4f4f; font-weight: bold; }
 
     #log {
-      background: #1a1a1a;
-      color: #d4d4d4;
+      margin-top: 20px;
       padding: 15px;
-      border-radius: 6px;
-      font: .9em 'Courier New', Courier, monospace;
+      background: #111;
+      border-radius: 8px;
       max-height: 300px;
       overflow-y: auto;
-      margin: 0.5em 0;
-      overflow-wrap: anywhere;
-    }
-
-    #asn {
-      margin-top: 0.2em;
-      font-size: .9em;
-      color: #555;
-    }
-
-    .footer {
-      margin-top: 20px;
-      font-size: .9em;
-      color: #555;
-    }
-
-    a {
-      color: #007bff;
-      text-decoration: none;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    .asn-br::after {
-      content: " • ";
-    }
-
-    @media (max-width: 600px) {
-      body {
-        padding: 10px;
-      }
-
-      .header {
-        font-size: 1em;
-      }
-
-      #start {
-        width: 50%;
-        font-size: 1em;
-      }
-
-      table {
-        font-size: .9em;
-      }
-
-      th,
-      td {
-        padding: 3px 8px;
-      }
-
-      #log {
-        padding: 7px;
-      }
-
-      .asn-br::after {
-        content: "\A";
-        white-space: pre;
-      }
+      white-space: pre-wrap;
+      font-size: 0.9em;
     }
   </style>
 </head>
 
 <body>
-  <div>
-    <button id="start">Start</button>
-    <span class="header">Status:
-      <span id="status" class="status-ready">Ready ⚡</span>
-    </span>
+  <header>
+    <img src="https://rudokmedok.ru/logo.png" alt="RudokMedok" />
+    <h2>DPI Checker TCP 16-20</h2>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="games">Игровые сервера</div>
+    <div class="tab" data-tab="discord">Discord</div>
+    <div class="tab" data-tab="youtube">YouTube / Google</div>
+    <div class="tab" data-tab="blocked">DPI / RKN</div>
+    <div class="tab" data-tab="custom">Кастомные</div>
   </div>
-  <div id="asn">
+
+  <div class="container">
+    <button id="start">Начать проверку</button>
+    <span id="status">Готово ⚡</span>
+
+    <table id="results">
+      <tr>
+        <th>#</th>
+        <th>Провайдер</th>
+        <th>Статус DPI</th>
+      </tr>
+    </table>
+
+    <pre id="log"></pre>
   </div>
-  <table id="results">
-    <tr>
-      <th>#</th>
-      <th>Provider</th>
-      <th>DPI[tcp 16-20] Status</th>
-    </tr>
-  </table> <pre id="log"></pre>
-  <div class="footer">💡 DPI[tcp 16-20] / See
-    <b>
-      <a href="https://github.com/net4people/bbs/issues/490" target="_blank">here</a>
-    </b>for more details.
-    <br>This checker (and others) are available in
-    <b>
-      <a href="https://github.com/hyperion-cs/dpi-checkers" target="_blank">this</a>
-    </b>open-source repository.</div>
+
   <script>
-  // Where possible, we should use stable endpoints (with the same response size every time, with a long-lived URL, without versions, etc.)
-    const TEST_SUITE = [
+    const TABS = {
+      games: [
       { id: "US.CF-01", provider: "🇺🇸 Cloudflare", times: 1, url: "https://cdn.cookielaw.org/scripttemplates/202501.2.0/otBannerSdk.js" },
       { id: "US.CF-02", provider: "🇺🇸 Cloudflare", times: 1, url: "https://genshin.jmp.blue/characters/all#" },
       { id: "US.CF-03", provider: "🇺🇸 Cloudflare", times: 1, url: "https://api.frankfurter.dev/v1/2000-01-01..2002-12-31" },
@@ -223,178 +159,86 @@
       { id: "FR.SW-01", provider: "🇫🇷 Scaleway", times: 1, url: "https://renklisigorta.com.tr/teklif-al" },
       { id: "US.CNST-01", provider: "🇺🇸 Constant", times: 1, url: "https://cdn.xuansiwei.com/common/lib/font-awesome/4.7.0/fontawesome-webfont.woff2?v=4.7.0" }
     ];
+      discord: [
+        { id: "DC-01", provider: "Discord CDN", times: 1, url: "https://discord.com/api/v9/users/@me" },
+        { id: "DC-02", provider: "Discord Media", times: 1, url: "https://cdn.discordapp.com/icons/81384788765712384/a_123.png" }
+      ],
+      youtube: [
+        { id: "YT-01", provider: "Google Video", times: 1, url: "https://redirector.googlevideo.com/videoplayback" },
+        { id: "YT-02", provider: "Google", times: 1, url: "https://www.youtube.com/s/player/abcd1234/player_ias.vflset" }
+      ],
+      blocked: [
+        { id: "VK-01", provider: "VK", times: 1, url: "https://vk.com/js/api/share.js" },
+        { id: "TG-01", provider: "Telegram", times: 1, url: "https://core.telegram.org/js/telegram-widget.js" }
+      ],
+      custom: []
+    };
 
-    const OK_THRESHOLD_BYTES = 64 * 1024;
-    let TIMEOUT_MS = 5000;
+    let CURRENT = "games";
 
-    (function getParamsHandler() {
-      const params = new URLSearchParams(window.location.search);
-
-      const url = params.get("url");
-      if (url) {
-        const provider = params.get("provider") || "Custom";
-        const times = parseInt(params.get("times")) || 1;
-        const newTest = { id: `CUST-01`, provider, times, url };
-        TEST_SUITE.push(newTest);
-      }
-
-      TIMEOUT_MS = parseInt(params.get("timeout")) || TIMEOUT_MS;
-    })();
-
-    const fetchOpt = ctrl => ({
-      method: "GET",
-      credentials: "omit",
-      cache: "no-store",
-      signal: ctrl.signal,
-      redirect: "manual",
-      keepalive: true
+    document.querySelectorAll('.tab').forEach(t => {
+      t.onclick = () => {
+        document.querySelector('.tab.active').classList.remove('active');
+        t.classList.add('active');
+        CURRENT = t.dataset.tab;
+      };
     });
 
     const startButton = document.getElementById("start");
     const status = document.getElementById("status");
-    const log = document.getElementById("log");
     const results = document.getElementById("results");
+    const log = document.getElementById("log");
 
-    const httpCodes = {};
-
-    const toggleUI = (locked) => {
-      startButton.disabled = locked;
-      startButton.textContent = locked ? "..." : "Start";
-      status.className = locked ? "status-checking" : "status-ready";
-    };
-
-    const setStatus = (col, text, cls) => {
-      col.textContent = text;
-      col.className = cls;
-      if (cls === "bad") status.className = "status-error";
-    };
-
-    const logPush = (level, prefix, msg) => {
-      const now = new Date();
-      const ts = now.toLocaleTimeString([], { hour12: false }) + "." + now.getMilliseconds().toString().padStart(3, "0");
-      log.textContent += `[${ts}] ${prefix ? prefix + "/" : ""}${level}: ${msg}\n`;
+    function logPush(msg) {
+      log.textContent += msg + "\n";
       log.scrollTop = log.scrollHeight;
-    };
+    }
 
-    const timeElapsed = t0 => `${(performance.now() - t0).toFixed(1)} ms`;
-    const getHttpStatus = id => httpCodes[id];
-
-    const getUniqueUrl = url => {
-      return url.includes('?') ? `${url}&t=${Math.random()}` : `${url}?t=${Math.random()}`;
-    };
-
-    const startOrchestrator = async () => {
-      status.textContent = "Checking ⏰";
-      status.className = "status-checking";
-      for (let i = results.rows.length - 1; i > 0; i--) {
-        results.deleteRow(i);
-      }
-
-      try {
-        const tasks = [];
-        for (let t of TEST_SUITE) {
-          for (let i = 0; i < t.times; i++) {
-            tasks.push(checkDpi(t.times > 1 ? `${t.id}@${i}` : t.id, t.provider, t.url));
-          }
-        }
-
-        await Promise.all(tasks);
-        status.textContent = "Ready ⚡";
-        status.className = "status-ready";
-      } catch (e) {
-        status.textContent = "Unexpected error ⚠️";
-        logPush("ERR", null, `Unexpected error => ${e}`);
-        status.className = "status-error";
-      }
-      logPush("INFO", null, "Done.");
-      toggleUI(false);
-    };
-
-    const checkDpi = async (id, provider, url) => {
-      const prefix = `DPI checking(#${id})`;
-      const t0 = performance.now();
-      const ctrl = new AbortController();
-      const timeoutId = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-
+    async function runTest(test) {
       const row = results.insertRow();
-      const numCell = row.insertCell();
-      const providerCell = row.insertCell();
-      const statusCell = row.insertCell();
-
-      numCell.textContent = id;
-      providerCell.textContent = provider;
-      setStatus(statusCell, "Checking ⏰", "");
+      row.insertCell().textContent = test.id;
+      row.insertCell().textContent = test.provider;
+      const cell = row.insertCell();
+      cell.textContent = "Проверка...";
 
       try {
-        const r = await fetch(getUniqueUrl(url), fetchOpt(ctrl));
-        logPush("INFO", prefix, `HTTP ${r.status}`);
-        httpCodes[id] = r.status;
-        const reader = r.body.getReader();
-        let received = 0, ok = false;
+        const res = await fetch(test.url + "?t=" + Math.random());
+        let reader = res.body.getReader();
+        let received = 0;
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) {
-            clearTimeout(timeoutId);
-            logPush("INFO", prefix, `Stream complete without timeout (${timeElapsed(t0)})`);
-            if (!ok) {
-              logPush("WARN", prefix, `Stream ended but data is too small`);
-              setStatus(statusCell, "Possibly detected ⚠️", "");
-            }
-            break;
-          }
-
+          if (done) break;
           received += value.byteLength;
-          logPush("INFO", prefix, `Received chunk: ${value.byteLength} bytes, total: ${received}`);
+          if (received > 60000) break;
+        }
 
-          if (!ok && received >= OK_THRESHOLD_BYTES) {
-            clearTimeout(timeoutId);
-            await reader.cancel();
-            ok = true;
-            logPush("INFO", prefix, `Early complete (${timeElapsed(t0)})`);
-            setStatus(statusCell, "Not detected ✅", "ok");
-            break;
-          }
+        if (received < 60000) {
+          cell.textContent = "Обнаружено DPI";
+          cell.className = "bad";
+        } else {
+          cell.textContent = "Не обнаружено";
+          cell.className = "ok";
         }
       } catch (e) {
-        clearTimeout(timeoutId);
-        if (e.name === "AbortError") {
-          const statusCode = getHttpStatus(id);
-          let reason = statusCode ? "READ" : "CONN";
-          logPush("ERR", prefix, `${reason} timeout reached (${timeElapsed(t0)})`);
-          setStatus(statusCell, statusCode ? "Detected❗️" : "Detected*❗️", "bad");
-        } else {
-          logPush("ERR", prefix, `Fetch/read error => ${e}`);
-          setStatus(statusCell, "Failed to complete detection ⚠️", "");
-        }
+        cell.textContent = "Ошибка";
+        cell.className = "bad";
       }
-    };
+    }
 
-    startButton.onclick = () => {
+    startButton.onclick = async () => {
+      results.innerHTML = `
+        <tr>
+          <th>#</th><th>Провайдер</th><th>Статус DPI</th>
+        </tr>`;
+
       log.textContent = "";
-      toggleUI(true);
-      localStorage.clear();
-      sessionStorage.clear();
-      startOrchestrator();
-    };
+      status.textContent = "Проверка...";
 
-    const fetchAsn = async () => {
-      try {
-        const RIPE_API_URL = "https://stat.ripe.net/data/";
-        const ip = (await (await fetch(RIPE_API_URL + "whats-my-ip/data.json")).json()).data.ip;
-        const asn = (await (await fetch(RIPE_API_URL + "prefix-overview/data.json?resource=" + ip)).json()).data.asns[0];
-        const geo = (await (await fetch(RIPE_API_URL + "maxmind-geo-lite/data.json?resource=" + ip)).json()).data.located_resources[0].locations[0];
-        const el = document.getElementById("asn");
-        el.innerHTML = `ASN: <a href="https://bgp.he.net/AS${asn.asn}" target="_blank">AS${asn.asn}</a> (<i>${asn.holder}</i>)<span class="asn-br"></span>${geo.country}, ${geo.city || "—"}`;
-      } catch (err) {
-        console.error("Fetch ASN err:", err);
-      }
-    };
+      for (let t of TABS[CURRENT]) await runTest(t);
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      await fetchAsn();
-    });
+      status.textContent = "Готово ⚡";
+    };
   </script>
 </body>
-
 </html>
